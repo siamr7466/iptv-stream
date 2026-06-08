@@ -169,7 +169,7 @@ export default function App() {
   return (
     <div 
       ref={containerRef}
-      className="h-screen lg:h-auto bg-slate-950 flex flex-col selection:bg-indigo-500 selection:text-slate-900 overflow-hidden lg:overflow-visible"
+      className="min-h-screen bg-slate-950 flex flex-col selection:bg-indigo-500 selection:text-slate-900 overflow-x-hidden"
     >
       {/* Top Status and Branding Bar */}
       <header className="border-b border-slate-800/80 bg-slate-900/95 backdrop-blur-md sticky top-0 z-45 shrink-0">
@@ -209,11 +209,11 @@ export default function App() {
       </header>
 
       {/* Main Content Workspace Layout */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-0 pb-4 lg:py-6 flex flex-col lg:flex-row gap-5 lg:gap-6 overflow-y-auto lg:overflow-visible">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 lg:py-6 flex flex-col lg:flex-row gap-5 lg:gap-6">
         
         {/* LEFT COLUMN: Sticky Video Player & Diagnostics Block (60%) */}
-        <div id="column-left" className="contents lg:flex lg:flex-col lg:gap-5 lg:w-[62%] lg:max-w-[62%] lg:sticky lg:top-[76px] lg:h-fit">
-          <div className="sticky top-0 z-40 lg:relative lg:top-auto bg-slate-950 -mx-4 px-4 pt-0 pb-2 sm:mx-0 sm:px-0 sm:py-0 border-b border-slate-900 lg:border-none shadow-lg shadow-black/80 lg:shadow-none">
+        <div id="column-left" className="flex flex-col gap-4 sm:gap-5 lg:w-[62%] lg:max-w-[62%] lg:sticky lg:top-[76px] lg:h-fit">
+          <div className="relative bg-slate-950 pt-0 pb-2 sm:py-0 shadow-lg shadow-black/80 lg:shadow-none">
             <VideoPlayer 
               channel={selectedChannel}
               playbackMode={playbackMode}
