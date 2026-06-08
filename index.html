@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Glance IPTV Player</title>
+    <script>
+      // Double defense against window.fetch read-only property assignment errors
+      window.addEventListener('error', function(event) {
+        if (event.message && (
+          event.message.indexOf('Cannot set property fetch') > -1 || 
+          event.message.indexOf('fetch of #<Window>') > -1 ||
+          event.message.indexOf('only a getter') > -1
+        )) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
+      }, true);
+
+      try {
+        var originalFetch = window.fetch;
+        Object.defineProperty(window, 'fetch', {
+          get: function() {
+            return originalFetch;
+          },
+          set: function(val) {
+            // Silently ignore or allow setting if needed, preventing the TypeError
+            console.warn('Blocked attempt to override window.fetch');
+          },
+          configurable: true,
+          enumerable: true
+        });
+      } catch (err) {
+        console.error('Failed to patch window.fetch setter:', err);
+      }
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+

@@ -1,0 +1,6 @@
+{
+  "name": "Glance",
+  "description": "Watch live TV, news categorized by country (Bangladesh pinned at top), and sports with integrated Geo-Bypass technology",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
