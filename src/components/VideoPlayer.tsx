@@ -284,6 +284,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       <video
         ref={videoRef}
         onClick={togglePlay}
+        onDoubleClick={handleFullscreen}
         className="w-full h-full object-contain cursor-pointer"
         playsInline
       />
