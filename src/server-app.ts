@@ -125,122 +125,131 @@ function parseM3U(content: string, defaultCountry = "INT", defaultGroup = "Gener
   return channels;
 }
 
+let activeFetchPromise: Promise<void> | null = null;
+
 // Fetch lists from IPTV-org and process them
 async function refreshIPTVData() {
-  try {
-    console.log("Fetching IPTV playlists...");
+  if (activeFetchPromise) {
+    return activeFetchPromise;
+  }
 
-    // Fetch Bangladesh M3U
-    const bdRes = await fetch("https://iptv-org.github.io/iptv/countries/bd.m3u");
-    let bdChannels: Channel[] = [];
-    if (bdRes.ok) {
-      const bdText = await bdRes.text();
-      bdChannels = parseM3U(bdText, "BD", "Bangladesh");
-      cachedBangladesh = bdChannels;
-    }
+  activeFetchPromise = (async () => {
+    try {
+      console.log("Fetching IPTV playlists...");
 
-    // Capture BD URLs for quick matching
-    const bdUrls = new Set(bdChannels.map(c => c.url.toLowerCase()));
-    const bdNames = new Set(bdChannels.map(c => c.name.toLowerCase()));
+      // Fetch Bangladesh M3U
+      const bdRes = await fetch("https://iptv-org.github.io/iptv/countries/bd.m3u");
+      let bdChannels: Channel[] = [];
+      if (bdRes.ok) {
+        const bdText = await bdRes.text();
+        bdChannels = parseM3U(bdText, "BD", "Bangladesh");
+        cachedBangladesh = bdChannels;
+      }
 
-    // Fetch News M3U
-    const newsRes = await fetch("https://iptv-org.github.io/iptv/categories/news.m3u");
-    let newsChannels: Channel[] = [];
-    if (newsRes.ok) {
-      const newsText = await newsRes.text();
-      newsChannels = parseM3U(newsText, "INT", "News");
-    }
+      // Capture BD URLs for quick matching
+      const bdUrls = new Set(bdChannels.map(c => c.url.toLowerCase()));
+      const bdNames = new Set(bdChannels.map(c => c.name.toLowerCase()));
 
-    // Fetch Sports M3U
-    const sportsRes = await fetch("https://iptv-org.github.io/iptv/categories/sports.m3u");
-    if (sportsRes.ok) {
-      const sportsText = await sportsRes.text();
-      const sportsRaw = parseM3U(sportsText, "INT", "Sports");
-      
-      // If a sports channel has a BD url/name, prioritize BD country code
-      sportsRaw.forEach(c => {
-        if (bdUrls.has(c.url.toLowerCase()) || bdNames.has(c.name.toLowerCase())) {
+      // Fetch News M3U
+      const newsRes = await fetch("https://iptv-org.github.io/iptv/categories/news.m3u");
+      let newsChannels: Channel[] = [];
+      if (newsRes.ok) {
+        const newsText = await newsRes.text();
+        newsChannels = parseM3U(newsText, "INT", "News");
+      }
+
+      // Fetch Sports M3U
+      const sportsRes = await fetch("https://iptv-org.github.io/iptv/categories/sports.m3u");
+      if (sportsRes.ok) {
+        const sportsText = await sportsRes.text();
+        const sportsRaw = parseM3U(sportsText, "INT", "Sports");
+        
+        // If a sports channel has a BD url/name, prioritize BD country code
+        sportsRaw.forEach(c => {
+          if (bdUrls.has(c.url.toLowerCase()) || bdNames.has(c.name.toLowerCase())) {
+            c.countryCode = "BD";
+            c.countryName = "Bangladesh";
+          }
+        });
+        cachedSports = sportsRaw;
+      }
+
+      // Process News channels: map countries and ensure BD channels are correctly detected
+      newsChannels.forEach(c => {
+        // Check if this news channel is indeed BD-related
+        if (
+          c.countryCode === "BD" || 
+          bdUrls.has(c.url.toLowerCase()) || 
+          bdNames.has(c.name.toLowerCase()) ||
+          c.name.toLowerCase().includes("bangla") ||
+          c.name.toLowerCase().includes("dhaka")
+        ) {
           c.countryCode = "BD";
           c.countryName = "Bangladesh";
         }
       });
-      cachedSports = sportsRaw;
-    }
 
-    // Process News channels: map countries and ensure BD channels are correctly detected
-    newsChannels.forEach(c => {
-      // Check if this news channel is indeed BD-related
-      if (
-        c.countryCode === "BD" || 
-        bdUrls.has(c.url.toLowerCase()) || 
-        bdNames.has(c.name.toLowerCase()) ||
-        c.name.toLowerCase().includes("bangla") ||
-        c.name.toLowerCase().includes("dhaka")
-      ) {
-        c.countryCode = "BD";
-        c.countryName = "Bangladesh";
-      }
-    });
-
-    // Group News by Country
-    const groupedNewsMap = new Map<string, Channel[]>();
-    newsChannels.forEach(c => {
-      const countryCode = c.countryCode || "INT";
-      if (!groupedNewsMap.has(countryCode)) {
-        groupedNewsMap.set(countryCode, []);
-      }
-      groupedNewsMap.get(countryCode)!.push(c);
-    });
-
-    // Format groupedNews
-    const groupedList: CountryGroup[] = [];
-    groupedNewsMap.forEach((channels, countryCode) => {
-      groupedList.push({
-        countryCode,
-        countryName: getCountryName(countryCode),
-        channels
+      // Group News by Country
+      const groupedNewsMap = new Map<string, Channel[]>();
+      newsChannels.forEach(c => {
+        const countryCode = c.countryCode || "INT";
+        if (!groupedNewsMap.has(countryCode)) {
+          groupedNewsMap.set(countryCode, []);
+        }
+        groupedNewsMap.get(countryCode)!.push(c);
       });
-    });
 
-    // Sort countries alphabetically
-    groupedList.sort((a, b) => a.countryName.localeCompare(b.countryName));
+      // Format groupedNews
+      const groupedList: CountryGroup[] = [];
+      groupedNewsMap.forEach((channels, countryCode) => {
+        groupedList.push({
+          countryCode,
+          countryName: getCountryName(countryCode),
+          channels
+        });
+      });
 
-    // Place Bangladesh (BD) at the very top of News if it exists, otherwise provide from BD checklist
-    const bdNewsIndex = groupedList.findIndex(g => g.countryCode === "BD");
-    let bdNewsGroup: CountryGroup;
+      // Sort countries alphabetically
+      groupedList.sort((a, b) => a.countryName.localeCompare(b.countryName));
 
-    if (bdNewsIndex !== -1) {
-      bdNewsGroup = groupedList.splice(bdNewsIndex, 1)[0];
-    } else {
-      // Create news group for Bangladesh from we parsed in BD list if missing
-      const bdNewsFromBD = bdChannels.filter(c => 
-        c.name.toLowerCase().includes("news") || 
-        c.name.toLowerCase().includes("somoy") ||
-        c.name.toLowerCase().includes("jamuna") ||
-        c.name.toLowerCase().includes("independent") ||
-        c.name.toLowerCase().includes("channel 24") ||
-        c.name.toLowerCase().includes("dbc") ||
-        c.name.toLowerCase().includes("ekattor") ||
-        c.name.toLowerCase().includes("atn")
-      );
-      bdNewsGroup = {
-        countryCode: "BD",
-        countryName: "Bangladesh",
-        channels: bdNewsFromBD.length > 0 ? bdNewsFromBD : bdChannels.slice(0, 10)
-      };
+      // Place Bangladesh (BD) at the very top of News if it exists, otherwise provide from BD checklist
+      const bdNewsIndex = groupedList.findIndex(g => g.countryCode === "BD");
+      let bdNewsGroup: CountryGroup;
+
+      if (bdNewsIndex !== -1) {
+        bdNewsGroup = groupedList.splice(bdNewsIndex, 1)[0];
+      } else {
+        // Create news group for Bangladesh from we parsed in BD list if missing
+        const bdNewsFromBD = bdChannels.filter(c => 
+          c.name.toLowerCase().includes("news") || 
+          c.name.toLowerCase().includes("somoy") ||
+          c.name.toLowerCase().includes("jamuna") ||
+          c.name.toLowerCase().includes("independent") ||
+          c.name.toLowerCase().includes("channel 24") ||
+          c.name.toLowerCase().includes("dbc") ||
+          c.name.toLowerCase().includes("ekattor") ||
+          c.name.toLowerCase().includes("atn")
+        );
+        bdNewsGroup = {
+          countryCode: "BD",
+          countryName: "Bangladesh",
+          channels: bdNewsFromBD.length > 0 ? bdNewsFromBD : bdChannels.slice(0, 10)
+        };
+      }
+
+      // Put Bangladesh at top of the array
+      cachedNews = [bdNewsGroup, ...groupedList];
+      lastFetchedTime = Date.now();
+      console.log(`IPTV data initialized successfully. News: ${newsChannels.length}, Sports: ${cachedSports.length}, Bangladesh Total: ${cachedBangladesh.length}`);
+    } catch (error) {
+      console.error("Error refreshing IPTV data:", error);
+    } finally {
+      activeFetchPromise = null;
     }
+  })();
 
-    // Put Bangladesh at top of the array
-    cachedNews = [bdNewsGroup, ...groupedList];
-    lastFetchedTime = Date.now();
-    console.log(`IPTV data initialized successfully. News: ${newsChannels.length}, Sports: ${cachedSports.length}, Bangladesh Total: ${cachedBangladesh.length}`);
-  } catch (error) {
-    console.error("Error refreshing IPTV data:", error);
-  }
+  return activeFetchPromise;
 }
-
-// Run immediately on boot
-refreshIPTVData();
 
 const app = express();
 app.use(express.json());
