@@ -247,41 +247,61 @@ app.use(express.json());
 
 // API routes
 app.get("/api/iptv/news", async (req, res) => {
-  if (Date.now() - lastFetchedTime > CACHE_DURATION || cachedNews.length === 0) {
-    await refreshIPTVData();
+  try {
+    if (Date.now() - lastFetchedTime > CACHE_DURATION || cachedNews.length === 0) {
+      await refreshIPTVData();
+    }
+    res.json({
+      success: true,
+      lastUpdated: lastFetchedTime,
+      data: cachedNews
+    });
+  } catch (error: any) {
+    console.error("Error in /api/iptv/news:", error);
+    res.status(500).json({ success: false, error: error.message || String(error), stack: error.stack });
   }
-  res.json({
-    success: true,
-    lastUpdated: lastFetchedTime,
-    data: cachedNews
-  });
 });
 
 app.get("/api/iptv/sports", async (req, res) => {
-  if (Date.now() - lastFetchedTime > CACHE_DURATION || cachedSports.length === 0) {
-    await refreshIPTVData();
+  try {
+    if (Date.now() - lastFetchedTime > CACHE_DURATION || cachedSports.length === 0) {
+      await refreshIPTVData();
+    }
+    res.json({
+      success: true,
+      lastUpdated: lastFetchedTime,
+      data: cachedSports
+    });
+  } catch (error: any) {
+    console.error("Error in /api/iptv/sports:", error);
+    res.status(500).json({ success: false, error: error.message || String(error), stack: error.stack });
   }
-  res.json({
-    success: true,
-    lastUpdated: lastFetchedTime,
-    data: cachedSports
-  });
 });
 
 app.get("/api/iptv/bangladesh", async (req, res) => {
-  if (Date.now() - lastFetchedTime > CACHE_DURATION || cachedBangladesh.length === 0) {
-    await refreshIPTVData();
+  try {
+    if (Date.now() - lastFetchedTime > CACHE_DURATION || cachedBangladesh.length === 0) {
+      await refreshIPTVData();
+    }
+    res.json({
+      success: true,
+      lastUpdated: lastFetchedTime,
+      data: cachedBangladesh
+    });
+  } catch (error: any) {
+    console.error("Error in /api/iptv/bangladesh:", error);
+    res.status(500).json({ success: false, error: error.message || String(error), stack: error.stack });
   }
-  res.json({
-    success: true,
-    lastUpdated: lastFetchedTime,
-    data: cachedBangladesh
-  });
 });
 
 app.post("/api/iptv/refresh", async (req, res) => {
-  await refreshIPTVData();
-  res.json({ success: true, message: "IPTV cache refreshed manually" });
+  try {
+    await refreshIPTVData();
+    res.json({ success: true, message: "IPTV cache refreshed manually" });
+  } catch (error: any) {
+    console.error("Error in /api/iptv/refresh:", error);
+    res.status(500).json({ success: false, error: error.message || String(error), stack: error.stack });
+  }
 });
 
 // HLS stream geo-bypass & CORS bypass proxy with URL Rewriting!
