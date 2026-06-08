@@ -15,7 +15,6 @@ body {
   font-family: var(--font-sans);
   background-color: #020617; /* Slate 950 from Glance Balance */
   color: #f8fafc;
-  overflow-x: hidden;
 }
 
 /* Custom gorgeous scrollbar for panels */
@@ -45,3 +44,35 @@ body {
 .stream-card-hover {
   transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
+
+/* Enable hardware acceleration and optimize rendering for lists */
+.channel-card-container {
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+  will-change: transform;
+}
+
+/* Modern browser scroll optimization */
+@supports (content-visibility: auto) {
+  .channel-card-container {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 70px;
+  }
+}
+
+/* Enable smooth inertia scrolling on iOS Safari */
+.scroll-touch-smooth {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Channel Card Hover with hover media query to prevent mobile sticky hover glitches */
+@media (hover: hover) {
+  .channel-card-hover:hover {
+    transform: scale(1.015);
+    border-color: rgba(99, 102, 241, 0.4); /* subtle indigo borders on hover */
+  }
+}
+.channel-card-hover:active {
+  transform: scale(0.985);
+}
+

@@ -89,18 +89,64 @@ export default function App() {
     fetchIPTVData();
   }, []);
 
-  // GSAP animation for grid element transitions when changing tabs
+  const [visibleLimit, setVisibleLimit] = useState(50);
+
+  // Reset visible limit on search query or tab change
   useEffect(() => {
-    if (gridRef.current) {
+    setVisibleLimit(50);
+  }, [activeTab, searchQuery]);
+
+  // Infinite scroll listener for both desktop (container scroll) and mobile (window scroll)
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollArea = document.getElementById("channels-browser-scroll-area");
+      if (!scrollArea) return;
+
+      const isDesktop = window.innerWidth >= 1024; // lg breakpoint in Tailwind
+      if (isDesktop) {
+        const { scrollTop, scrollHeight, clientHeight } = scrollArea;
+        // Load more when reaching within 150px of the bottom
+        if (scrollHeight - scrollTop - clientHeight < 150) {
+          setVisibleLimit(prev => prev + 50);
+        }
+      } else {
+        const { scrollTop, scrollHeight } = document.documentElement;
+        const clientHeight = window.innerHeight;
+        // Load more on mobile when reaching within 250px of the bottom
+        if (scrollHeight - scrollTop - clientHeight < 250) {
+          setVisibleLimit(prev => prev + 50);
+        }
+      }
+    };
+
+    const scrollArea = document.getElementById("channels-browser-scroll-area");
+    if (scrollArea) {
+      scrollArea.addEventListener("scroll", handleScroll, { passive: true });
+    }
+    window.addEventListener("scroll", handleScroll, { passive: true });
+
+    return () => {
+      if (scrollArea) {
+        scrollArea.removeEventListener("scroll", handleScroll);
+      }
+      window.removeEventListener("scroll", handleScroll);
+    };
+  }, [activeTab, searchQuery]);
+
+  // GSAP animation for grid element transitions when changing tabs (optimized to animate first 25 items only)
+  useEffect(() => {
+    if (gridRef.current && gridRef.current.children.length > 0) {
+      const itemsToAnimate = Array.from(gridRef.current.children).slice(0, 25);
+      gsap.killTweensOf(itemsToAnimate); // Avoid animation stacking
       gsap.fromTo(
-        gridRef.current.children,
+        itemsToAnimate,
         { opacity: 0, y: 12, scale: 0.98 },
         { 
           opacity: 1, 
           y: 0, 
           scale: 1, 
-          duration: 0.4, 
-          stagger: 0.04, 
+          duration: 0.35, 
+          stagger: 0.03, 
           ease: "power2.out" 
         }
       );
@@ -349,7 +395,7 @@ export default function App() {
           {/* Directory Listings with scrollbars on desktop only */}
           <div 
             id="channels-browser-scroll-area"
-            className="flex-1 lg:max-h-[660px] lg:overflow-y-auto pr-1 flex flex-col gap-3"
+            className="flex-1 lg:max-h-[660px] lg:overflow-y-auto pr-1 flex flex-col gap-3 scroll-touch-smooth"
           >
             {isLoading ? (
               <div className="flex flex-col items-center justify-center py-20 text-slate-400 font-mono text-xs">
@@ -368,7 +414,7 @@ export default function App() {
                         <p className="text-xs text-slate-500 mt-1">Try relaxing your search filter query.</p>
                       </div>
                     ) : (
-                      getFilteredBangladesh().map((channel) => (
+                      getFilteredBangladesh().slice(0, visibleLimit).map((channel) => (
                         <ChannelCard 
                           key={channel.url}
                           channel={channel}
@@ -432,7 +478,7 @@ export default function App() {
 
                             {isExpanded && (
                               <div className="border-t border-slate-800/60 p-2 flex flex-col gap-1.5 bg-slate-950/40">
-                                {filteredCountryChannels.map((channel) => (
+                                {filteredCountryChannels.slice(0, visibleLimit).map((channel) => (
                                   <ChannelCard 
                                     key={channel.url}
                                     channel={channel}
@@ -462,7 +508,7 @@ export default function App() {
                         <p className="text-xs text-slate-500 mt-1">Refine active searching keys.</p>
                       </div>
                     ) : (
-                      getFilteredSports().map((channel) => (
+                      getFilteredSports().slice(0, visibleLimit).map((channel) => (
                         <ChannelCard 
                           key={channel.url}
                           channel={channel}
@@ -488,7 +534,7 @@ export default function App() {
                         </p>
                       </div>
                     ) : (
-                      getFilteredFavorites().map((channel) => (
+                      getFilteredFavorites().slice(0, visibleLimit).map((channel) => (
                         <ChannelCard 
                           key={channel.url}
                           channel={channel}
@@ -522,23 +568,10 @@ interface CardProps {
 }
 
 const ChannelCard: React.FC<CardProps> = ({ channel, isSelected, isFav, onSelect, onToggleFav, size = "default" }) => {
-  const cardRef = useRef<HTMLDivElement | null>(null);
-
-  const handleMouseEnter = () => {
-    gsap.to(cardRef.current, { scale: 1.015, duration: 0.2, ease: "power2.out" });
-  };
-
-  const handleMouseLeave = () => {
-    gsap.to(cardRef.current, { scale: 1, duration: 0.2, ease: "power2.out" });
-  };
-
   return (
     <div
-      ref={cardRef}
       onClick={onSelect}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
-      className={`w-full text-left rounded flex items-center justify-between transition-all outline-none cursor-pointer border ${
+      className={`w-full text-left rounded flex items-center justify-between outline-none cursor-pointer border channel-card-container channel-card-hover transition-all duration-200 ease-out transform-gpu ${
         size === "small" ? "p-2.5 text-xs" : "p-3.5"
       } ${
         isSelected
@@ -553,7 +586,9 @@ const ChannelCard: React.FC<CardProps> = ({ channel, isSelected, isFav, onSelect
             src={channel.logo} 
             alt={channel.name}
             referrerPolicy="no-referrer"
-            className={`rounded object-contain bg-slate-950 p-0.5 shadow ${
+            loading="lazy"
+            decoding="async"
+            className={`rounded object-contain bg-slate-950 p-0.5 shadow shrink-0 ${
               size === "small" ? "w-7 h-7" : "w-10 h-10"
             }`}
             onError={(e) => {
